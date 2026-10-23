@@ -1,5 +1,7 @@
 # Metro 2033 Redux Next-Gen – Magyarítás
 
+<img src="docs/images/borito.png" alt="Metro 2033 Redux Next-Gen magyarítás – Steam" width="320">
+
 Nem hivatalos magyarítás a **Metro 2033 Redux Steam next-gen Windows-kiadásához**. Magyar menük és feliratok, az új szövegek fordításával. A fegyvernevek eredeti angol alakban szerepelnek.
 
 **Letöltés:** [Kiadások / Releases](https://github.com/Harciropi/metro_2033_redux_nextgen_HUN/releases)
@@ -14,6 +16,12 @@ Nem hivatalos magyarítás a **Metro 2033 Redux Steam next-gen Windows-kiadásá
 4. A játékban válaszd az **angol szövegnyelvet** – a menük és feliratok magyarul jelennek meg.
 
 **Eltávolítás:** indítsd el újra ugyanazt az EXE-t. A telepítő felismeri a magyarítást, és felajánlja az eltávolítását. A mentések és beállítások megmaradnak. Egy későbbi játékfrissítés után újabb javításra lehet szükség.
+
+## Képernyőképek
+
+![Magyar grafikai beállítások](docs/images/grafikai-beallitasok.jpg)
+
+![Magyar felirat játék közben](docs/images/magyar-felirat.jpg)
 
 ## Készítők
 
