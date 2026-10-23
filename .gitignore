@@ -1,0 +1,15 @@
+# A telepítők a GitHub Releases kiadásokhoz tartoznak.
+/dist/
+
+# Nem saját forrásanyagok és helyi csomagfájlok.
+/.private/
+/installer/payload/
+/installer/*.bmp
+/installer/*.ico
+/installer/*.exe
+
+# Helyi állományok.
+*.log
+__pycache__/
+Thumbs.db
+.DS_Store
