@@ -4,8 +4,6 @@
 # Nem saját forrásanyagok és helyi csomagfájlok.
 /.private/
 /installer/payload/
-/installer/*.bmp
-/installer/*.ico
 /installer/*.exe
 
 # Helyi állományok.

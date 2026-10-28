@@ -6,11 +6,11 @@
  [switch]$LibraryOnly
 )
 $HuOriginal='02DA3140038E10705252538240B54D10A8C1A79A7778A4B10E564A7F695A78F8'
-$HuIndex='E9DFF95E78106B487842FE35AE945BCAAB664522C9B6C2B883B501AAA092BEF6'
-$HuOldIndex='6A608902B944160CD72468FE3D798D0ACE7A647B0C8DF3D5E18CCBB64D8B2B23'
-$HuArchive='DCA8F96A73690F0CF408C19D8EB645131C1BF177FC2C79C176EE9C73311F0227'
+$HuIndex='80B271519B9577DF550A4EA26D466C910533EA5C967E8190D8F9AA52F2F3A41D'
+$HuOldIndexes=@('794700A12A2597FEEBCFECE5F0CA08749C3B45632750AC9F415B16B69BFA56EE','B60BF8F2851BE2D6528E5A4B2CD5EE4F8FF95FBF51CB592E5C7CAC5E6E6852BF','A3E2A986A515606DF6AE1047A80238C7D120B8F0D75C348B50488E776F56D24F','6A608902B944160CD72468FE3D798D0ACE7A647B0C8DF3D5E18CCBB64D8B2B23','E9DFF95E78106B487842FE35AE945BCAAB664522C9B6C2B883B501AAA092BEF6')
+$HuArchive='0B89A1E1DC7C24005C841A76E4827316E099386E11D83158FF6919478B6B94F6'
 
-$HuOldArchives=@('F08F239397E3CA975AE2DE520118EE232BD80EDAA1F00A5DF818E8159E1885A9','900CB34D9BE66D00BBC8D995862FBF2D051FE5DE98CA7D9E64B2B531AA56BFB3','1B307FF77E83333C065C38C0F02E1ED22BDE9C38B998FE4D8D0D13054BB6C9A8')
+$HuOldArchives=@('74860253804313F07E696E50EE4002A6F70A336E518981D544F5E2CD76548127','79FA3227DAB1C56B25005825B41D3825BA8761557193676ACECC8FB912E93494','CC8F6084CD65F4D1EAA370DDFF518E928B26AE1A09C7619D76832B03608A0981','DCA8F96A73690F0CF408C19D8EB645131C1BF177FC2C79C176EE9C73311F0227','F08F239397E3CA975AE2DE520118EE232BD80EDAA1F00A5DF818E8159E1885A9','900CB34D9BE66D00BBC8D995862FBF2D051FE5DE98CA7D9E64B2B531AA56BFB3','1B307FF77E83333C065C38C0F02E1ED22BDE9C38B998FE4D8D0D13054BB6C9A8')
 $HuArchiveName='content_hun_nextgen2.vfs0'
 $HuBackupName='Magyaritas_NextGen_20261022'
 function Get-HuHash([string]$Path){
@@ -47,7 +47,7 @@ function Get-HuState([string]$Folder){
  $ih=Get-HuHash $index;$ah=Get-HuHash $archive
  if($ah -ne 'MISSING' -and $ah -ne $HuArchive -and $HuOldArchives -notcontains $ah){return 'FILE_CONFLICT'}
  if($ih -eq $HuIndex -and $ah -eq $HuArchive){return 'READY_REMOVE'}
- if($ih -eq $HuIndex -or $ih -eq $HuOldIndex){if($ah -eq 'MISSING'){return 'READY_REPAIR'};return 'READY_UPGRADE'}
+ if($ih -eq $HuIndex -or $HuOldIndexes -contains $ih){if($ah -eq 'MISSING'){return 'READY_REPAIR'};return 'READY_UPGRADE'}
  # Nem a magyarítás által írt jegyzék: bármely Steam next-gen build telepíthető.
  return 'READY_INSTALL'
 }
@@ -88,7 +88,7 @@ function Invoke-HuInstall([string]$Folder,[string]$Payload){
   [IO.File]::Copy([IO.Path]::Combine($Payload,$HuArchiveName),$archive,$true)
   [IO.File]::Copy([IO.Path]::Combine($Payload,'content.vfx'),$index,$true)
   if((Get-HuHash $index) -ne $HuIndex -or (Get-HuHash $archive) -ne $HuArchive){throw 'COPY_FAILED'}
-  [IO.File]::WriteAllText($marker,"[Magyaritas]`r`nVersion=1.5`r`nOriginalFile=$name`r`nOriginalHash=$originalHash`r`n",[Text.Encoding]::Unicode)
+  [IO.File]::WriteAllText($marker,"[Magyaritas]`r`nVersion=1.5.3`r`nOriginalFile=$name`r`nOriginalHash=$originalHash`r`n",[Text.Encoding]::Unicode)
  }catch{
   try{
    if($null -eq $beforeArchive){if([IO.File]::Exists($archive)){[IO.File]::Delete($archive)}}else{[IO.File]::WriteAllBytes($archive,$beforeArchive)}
@@ -124,7 +124,7 @@ function Invoke-HuRemove([string]$Folder,[string]$Payload){
   $marker=[IO.Path]::Combine($backup,'allapot.ini')
   if([IO.File]::Exists($marker)){
    $content=[IO.File]::ReadAllText($marker)
-   if($content -match '^\[Magyaritas\]\r?\nVersion=1\.[45]\r?\n'){[IO.File]::Delete($marker)}
+   if($content -match '^\[Magyaritas\]\r?\nVersion=1\.[45](?:\.\d+)?\r?\n'){[IO.File]::Delete($marker)}
   }
   if([IO.Directory]::Exists($backup) -and [IO.Directory]::GetFileSystemEntries($backup).Length -eq 0){[IO.Directory]::Delete($backup,$false)}
  }catch{}

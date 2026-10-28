@@ -9,10 +9,10 @@ InstallDir "$PROGRAMFILES32\Steam\steamapps\common\Metro 2033 Redux"
 InstallDirRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 286690" "InstallLocation"
 SetCompressor /SOLID lzma
 ShowInstDetails nevershow
-VIProductVersion "1.5.0.0"
+VIProductVersion "1.5.3.0"
 VIAddVersionKey /LANG=1038 "ProductName" "Metro 2033 Redux next-gen magyarítás"
 VIAddVersionKey /LANG=1038 "FileDescription" "Magyarítás telepítése és eltávolítása"
-VIAddVersionKey /LANG=1038 "FileVersion" "1.5.0"
+VIAddVersionKey /LANG=1038 "FileVersion" "1.5.3"
 VIAddVersionKey /LANG=1038 "LegalCopyright" "Eredeti magyarítás: Lostprophet. Nem hivatalos next-gen kiegészítés."
 Var DetectedState
 Var Operation
@@ -25,7 +25,7 @@ Var FinishTitle
 Var FinishText
 Var RunResult
 
-Icon "metro.ico"
+!define MUI_ICON "metro.ico"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "wizard-artwork.bmp"
 !define MUI_ABORTWARNING
 !define MUI_WELCOMEPAGE_TITLE "Metro 2033 Redux next-gen magyarítás"
