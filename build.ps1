@@ -10,12 +10,23 @@ if([string]::IsNullOrWhiteSpace($NsisPath)){
 }
 if(-not [IO.File]::Exists($NsisPath)){throw 'A megadott NSIS-fordító nem található.'}
 $installer=Join-Path $projectRoot 'installer'
-$required=@('telepito.nsi','Kezeles.ps1','wizard-artwork.bmp','metro.ico','payload\content.vfx','payload\content_hun_nextgen2.vfs0','payload\original-content.vfx')
+$required=@('telepito.nsi','Kezeles.ps1','Resources.cs','wizard-artwork.bmp','metro.ico','payload\content.vfx','payload\content_hun_nextgen2.vfs0','payload\original-content.vfx')
 foreach($file in $required){if(-not [IO.File]::Exists((Join-Path $installer $file))){throw "Hiányzó helyi csomagfájl: $file"}}
 $dist=Join-Path $projectRoot 'dist'
 $stage=Join-Path $dist ('.build-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path (Join-Path $stage 'payload') -Force | Out-Null
 foreach($file in $required){Copy-Item -LiteralPath (Join-Path $installer $file) -Destination (Join-Path $stage $file)}
+Copy-Item -LiteralPath (Join-Path $installer 'Resources.cs') -Destination (Join-Path $stage 'payload\Resources.cs')
+$manifestFiles=@(foreach($name in @('content.vfx','content_hun_nextgen2.vfs0','original-content.vfx','Resources.cs')){
+ [ordered]@{Name=$name;Sha256=(Get-FileHash -LiteralPath (Join-Path $stage ('payload\'+$name)) -Algorithm SHA256).Hash}
+})
+$manifest=[ordered]@{Product='Harciropi.Metro2033Redux.NextGen.HU';Version=$version;Files=$manifestFiles}
+$manifestPath=Join-Path $stage 'payload\package.json'
+[IO.File]::WriteAllText($manifestPath,($manifest|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+$manifestHash=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash
+$backendPath=Join-Path $stage 'Kezeles.ps1'
+$backend=[IO.File]::ReadAllText($backendPath).Replace('@@MANIFEST_SHA256@@',$manifestHash)
+[IO.File]::WriteAllText($backendPath,$backend,[Text.UTF8Encoding]::new($true))
 $nsiPath=Join-Path $stage 'telepito.nsi'
 $nsi=[IO.File]::ReadAllText($nsiPath)
 $nsi=[regex]::Replace($nsi,'(?m)^VIProductVersion "[^"]+"',('VIProductVersion "'+$version+'.0"'))
@@ -27,4 +38,7 @@ $release=Join-Path $dist ('v'+$version)
 New-Item -ItemType Directory -Path $release -Force | Out-Null
 $output=Join-Path $release 'Metro2033Redux_NextGen_HU.exe'
 Copy-Item -LiteralPath (Join-Path $stage 'Metro2033Redux_NextGen_HU.exe') -Destination $output
+$local=Join-Path $projectRoot '.private'
+[IO.Directory]::CreateDirectory($local)|Out-Null
+[IO.File]::WriteAllText((Join-Path $local 'build-package.json'),([ordered]@{Version=$version;Stage=$stage;Exe=$output;Sha256=(Get-FileHash -LiteralPath $output -Algorithm SHA256).Hash;ManifestHash=$manifestHash}|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
 Write-Output $output
