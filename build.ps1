@@ -1,44 +1,26 @@
-﻿param([string]$NsisPath)
+﻿param([string]$NsisPath,[string]$OutputRoot)
 $ErrorActionPreference='Stop'
 $projectRoot=$PSScriptRoot
-$version=[IO.File]::ReadAllText((Join-Path $projectRoot 'VERSION')).Trim()
-if($version -notmatch '^\d+\.\d+\.\d+$'){throw 'A VERSION fájlban major.minor.patch verzió szükséges.'}
+. (Join-Path $projectRoot 'tools\prepare-package.ps1') -LibraryOnly
 if([string]::IsNullOrWhiteSpace($NsisPath)){
  $compiler=Get-Command makensis.exe -ErrorAction SilentlyContinue
- if($null -eq $compiler){throw 'NSIS 3 Unicode szükséges. Add meg a fordítót a -NsisPath paraméterrel.'}
- $NsisPath=$compiler.Source
+ if($null -ne $compiler){$NsisPath=$compiler.Source}
+ else{$NsisPath=Join-Path $projectRoot '.private\compiler\nsis\makensis.exe'}
 }
-if(-not [IO.File]::Exists($NsisPath)){throw 'A megadott NSIS-fordító nem található.'}
-$installer=Join-Path $projectRoot 'installer'
-$required=@('telepito.nsi','Kezeles.ps1','Resources.cs','wizard-artwork.bmp','metro.ico','payload\content.vfx','payload\content_hun_nextgen2.vfs0','payload\original-content.vfx')
-foreach($file in $required){if(-not [IO.File]::Exists((Join-Path $installer $file))){throw "Hiányzó helyi csomagfájl: $file"}}
-$dist=Join-Path $projectRoot 'dist'
+if(-not [IO.File]::Exists($NsisPath)){throw 'NSIS 3 Unicode szükséges. Add meg a fordítót a -NsisPath paraméterrel.'}
+$dist=if([string]::IsNullOrWhiteSpace($OutputRoot)){Join-Path $projectRoot 'dist'}else{[IO.Path]::GetFullPath($OutputRoot)}
 $stage=Join-Path $dist ('.build-'+[guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path (Join-Path $stage 'payload') -Force | Out-Null
-foreach($file in $required){Copy-Item -LiteralPath (Join-Path $installer $file) -Destination (Join-Path $stage $file)}
-Copy-Item -LiteralPath (Join-Path $installer 'Resources.cs') -Destination (Join-Path $stage 'payload\Resources.cs')
-$manifestFiles=@(foreach($name in @('content.vfx','content_hun_nextgen2.vfs0','original-content.vfx','Resources.cs')){
- [ordered]@{Name=$name;Sha256=(Get-FileHash -LiteralPath (Join-Path $stage ('payload\'+$name)) -Algorithm SHA256).Hash}
-})
-$manifest=[ordered]@{Product='Harciropi.Metro2033Redux.NextGen.HU';Version=$version;Files=$manifestFiles}
-$manifestPath=Join-Path $stage 'payload\package.json'
-[IO.File]::WriteAllText($manifestPath,($manifest|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
-$manifestHash=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash
-$backendPath=Join-Path $stage 'Kezeles.ps1'
-$backend=[IO.File]::ReadAllText($backendPath).Replace('@@MANIFEST_SHA256@@',$manifestHash)
-[IO.File]::WriteAllText($backendPath,$backend,[Text.UTF8Encoding]::new($true))
-$nsiPath=Join-Path $stage 'telepito.nsi'
-$nsi=[IO.File]::ReadAllText($nsiPath)
-$nsi=[regex]::Replace($nsi,'(?m)^VIProductVersion "[^"]+"',('VIProductVersion "'+$version+'.0"'))
-$nsi=[regex]::Replace($nsi,'(?m)^VIAddVersionKey /LANG=1038 "FileVersion" "[^"]+"',('VIAddVersionKey /LANG=1038 "FileVersion" "'+$version+'"'))
-[IO.File]::WriteAllText($nsiPath,$nsi,[Text.UTF8Encoding]::new($true))
-& $NsisPath /V2 $nsiPath
-if($LASTEXITCODE -ne 0){throw 'Az NSIS-fordítás sikertelen.'}
-$release=Join-Path $dist ('v'+$version)
-New-Item -ItemType Directory -Path $release -Force | Out-Null
-$output=Join-Path $release 'Metro2033Redux_NextGen_HU.exe'
-Copy-Item -LiteralPath (Join-Path $stage 'Metro2033Redux_NextGen_HU.exe') -Destination $output
-$local=Join-Path $projectRoot '.private'
-[IO.Directory]::CreateDirectory($local)|Out-Null
-[IO.File]::WriteAllText((Join-Path $local 'build-package.json'),([ordered]@{Version=$version;Stage=$stage;Exe=$output;Sha256=(Get-FileHash -LiteralPath $output -Algorithm SHA256).Hash;ManifestHash=$manifestHash}|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
-Write-Output $output
+try{
+ $package=New-HuPackage $stage $projectRoot;$version=$package.Version
+ foreach($file in @('telepito.nsi','wizard-artwork.bmp','metro.ico')){Copy-Item -LiteralPath (Join-Path $projectRoot ('installer\'+$file)) -Destination (Join-Path $stage $file)}
+ $nsiPath=Join-Path $stage 'telepito.nsi';$nsi=[IO.File]::ReadAllText($nsiPath)
+ $nsi=[regex]::Replace($nsi,'(?m)^VIProductVersion "[^"]+"',('VIProductVersion "'+$version+'.0"'))
+ $nsi=[regex]::Replace($nsi,'(?m)^VIAddVersionKey /LANG=1038 "FileVersion" "[^"]+"',('VIAddVersionKey /LANG=1038 "FileVersion" "'+$version+'"'))
+ [IO.File]::WriteAllText($nsiPath,$nsi,[Text.UTF8Encoding]::new($true))
+ & $NsisPath /V2 $nsiPath
+ if($LASTEXITCODE -ne 0){throw 'Az NSIS-fordítás sikertelen.'}
+ $release=Join-Path $dist ('v'+$version);[IO.Directory]::CreateDirectory($release)|Out-Null
+ $output=Join-Path $release 'Metro2033Redux_NextGen_HU.exe'
+ Copy-Item -LiteralPath (Join-Path $stage 'Metro2033Redux_NextGen_HU.exe') -Destination $output
+ Write-Output $output
+}finally{Remove-HuScratch $stage $dist '.build-'}

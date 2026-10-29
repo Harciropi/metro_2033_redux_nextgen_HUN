@@ -1,20 +1,20 @@
 param([string]$SdkPath)
 $ErrorActionPreference='Stop'
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$build=Get-Content -LiteralPath (Join-Path $projectRoot '.private\build-package.json') -Raw|ConvertFrom-Json
-. (Join-Path $build.Stage 'Kezeles.ps1') -LibraryOnly
-$payload=Join-Path $build.Stage 'payload';$pkg=Read-HuPackage $payload
-$testRoot=Join-Path $projectRoot ('.private\v1.6.0\tests-'+[guid]::NewGuid().ToString('N'))
+. (Join-Path $PSScriptRoot 'prepare-package.ps1') -LibraryOnly
+$scratchParent=[IO.Path]::GetTempPath()
+$testRoot=Join-Path $scratchParent ('metro2033-components-'+[guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($testRoot)|Out-Null
+try{
+$package=New-HuPackage (Join-Path $testRoot 'package') $projectRoot
+. $package.Backend -LibraryOnly
+$payload=$package.Payload;$pkg=Read-HuPackage $payload
 $checks=[Collections.Generic.List[string]]::new()
 function Check([bool]$Ok,[string]$Name){if(-not $Ok){throw ('FAILED: '+$Name)};$checks.Add($Name)}
 function Rejected([scriptblock]$Action,[string]$Expected,[string]$Name){$actual='NO_ERROR';try{& $Action|Out-Null}catch{$actual=$_.Exception.Message};Check ($actual -eq $Expected) ($Name+' ['+$actual+']')}
 function Assert-Fixture([string]$Folder){if(-not [IO.Path]::GetFullPath($Folder).StartsWith($testRoot+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'OUTSIDE_FIXTURE'}}
 $original=[IO.File]::ReadAllBytes((Join-Path $payload 'original-content.vfx'));$originalHash=Get-HuBytesHash $original
-if([string]::IsNullOrWhiteSpace($SdkPath)){
- $resolved=Find-HuGame
- $SdkPath=Join-Path $resolved 'pros.sdk.x64.dll'
-}
+$SdkPath=Get-HuTestSdk $SdkPath
 $sdk=[IO.File]::ReadAllBytes($SdkPath);$sdkHash=Get-HuBytesHash $sdk
 Check ([Metro2033Hu.BannerFilter]::Inspect($sdk) -eq 'ORIGINAL') '2033 SDK matches checked exports and native code structure'
 $filtered=[Metro2033Hu.BannerFilter]::Apply($sdk);$sdkFilteredHash=Get-HuBytesHash $filtered
@@ -135,6 +135,5 @@ try{Check ((Find-HuGame) -eq $found) 'automatic Steam detection also accepts leg
 $manifest=Join-Path (Split-Path (Split-Path $found)) 'appmanifest_286690.acf'
 [IO.File]::WriteAllText($manifest,'"AppState" { "appid" "287390" "StateFlags" "4" "installdir" "MetroFixture" }')
 Rejected {Assert-HuGame $found} 'NOT_STEAM' 'Last Light app ID is rejected'
-$report=[ordered]@{Passed=$checks.Count;Checks=@($checks);FixtureRoot=$testRoot;GameDirectoryModified=$false;SdkOriginalHash=$sdkHash;SdkDisabledHash=$sdkFilteredHash;ChangedSdkOffsets=@($diff);Stage=$build.Stage}
-$report|ConvertTo-Json -Depth 6|Set-Content -LiteralPath (Join-Path $projectRoot '.private\v1.6.0\component-verification.json') -Encoding utf8
-[pscustomobject]@{Passed=$checks.Count;FixtureRoot=$testRoot;GameDirectoryModified=$false}
+[pscustomobject]@{Passed=$checks.Count;GameDirectoryModified=$false;TemporaryFilesRemovedOnExit=$true}
+}finally{Remove-HuScratch $testRoot $scratchParent 'metro2033-components-'}
